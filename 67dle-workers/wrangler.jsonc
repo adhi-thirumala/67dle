@@ -16,15 +16,15 @@
 	"kv_namespaces": [
 		{
 			"binding": "SESSIONS",
-			"id": "REPLACE_WITH_KV_ID",
-			"preview_id": "REPLACE_WITH_KV_PREVIEW_ID"
+			"id": "b9623c2908aa4a24a18f9688e7d89fa4",
+			"preview_id": "3b7d611fbc784c3890402e29ecc3ff33"
 		}
 	],
 	"d1_databases": [
 		{
 			"binding": "WORDS_DB",
 			"database_name": "67dle-words",
-			"database_id": "REPLACE_WITH_D1_ID"
+			"database_id": "5e98ecc6-ec9a-49e6-9121-919853be7227"
 		}
 	],
 	"env": {

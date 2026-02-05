@@ -10,10 +10,9 @@ def main() -> None:
 	words = response.read().decode().splitlines()
 	unique = sorted({word.strip().lower() for word in words if len(word.strip()) == 5 and word.isalpha()})
 
-	lines = ["BEGIN TRANSACTION;"]
+	lines = []
 	for word in unique:
 		lines.append(f"INSERT OR IGNORE INTO words(word) VALUES ('{word}');")
-	lines.append("COMMIT;")
 
 	OUTPUT_PATH.write_text("\n".join(lines))
 	print(f"Wrote {len(unique)} words to {OUTPUT_PATH}")

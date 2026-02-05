@@ -1,4 +1,3 @@
-BEGIN TRANSACTION;
 INSERT OR IGNORE INTO words(word) VALUES ('aahed');
 INSERT OR IGNORE INTO words(word) VALUES ('aalii');
 INSERT OR IGNORE INTO words(word) VALUES ('aargh');
@@ -15920,4 +15919,3 @@ INSERT OR IGNORE INTO words(word) VALUES ('zygon');
 INSERT OR IGNORE INTO words(word) VALUES ('zymes');
 INSERT OR IGNORE INTO words(word) VALUES ('zymic');
 INSERT OR IGNORE INTO words(word) VALUES ('zymin');
-COMMIT;
