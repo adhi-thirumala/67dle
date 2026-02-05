@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { BoardState, LetterState } from "./game.svelte";
+    import type { BoardState, LetterState } from "./game.svelte.ts";
 
     interface Props {
         board: BoardState;
@@ -101,5 +101,6 @@
 
     .contain-strict {
         contain: layout style paint;
+        content-visibility: auto;
     }
 </style>

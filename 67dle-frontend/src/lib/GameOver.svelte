@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { GameMode } from './game.svelte';
+  import type { GameMode } from './game.svelte.ts';
   
   interface Props {
     solvedCount: number;

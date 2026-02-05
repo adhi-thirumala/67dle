@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createGame, type GameMode, type GameStore } from './lib/game.svelte';
+  import { createGame, type GameMode, type GameStore } from './lib/game.svelte.ts';
   import Home from './lib/Home.svelte';
   import Game from './lib/Game.svelte';
   

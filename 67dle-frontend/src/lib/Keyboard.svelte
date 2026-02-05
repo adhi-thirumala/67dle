@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { LetterState } from './game.svelte';
+  import type { LetterState } from './game.svelte.ts';
   
   interface Props {
     keyStates: Map<string, LetterState>;

@@ -6,6 +6,7 @@ import {
 	storeToken,
 	submitGuess as submitGuessRequest,
 } from './api';
+import type { GuessResult } from './api';
 import { isGuessFormatValid, normalizeGuess } from './words';
 
 export type LetterState = 'empty' | 'tbd' | 'absent' | 'present' | 'correct';
@@ -15,6 +16,7 @@ export interface BoardState {
 	boardIndex: number;
 	guessResults: LetterState[][];
 	solved: boolean;
+	frozenGuesses?: string[];
 }
 
 const DEFAULT_BOARD_COUNT = 67;
@@ -42,11 +44,13 @@ export function createGame(mode: GameMode) {
 	let error = $state<string | null>(null);
 	let token = $state<string | null>(null);
 
-	const keyboardState = $derived.by(() => {
+	let keyboardState = $state(new Map<string, LetterState>());
+
+	function buildKeyboardState(nextBoards: BoardState[], nextGuesses: string[]): Map<string, LetterState> {
 		const states = new Map<string, LetterState>();
-		for (const board of boards) {
+		for (const board of nextBoards) {
 			for (let row = 0; row < board.guessResults.length; row++) {
-				const guess = guesses[row];
+				const guess = nextGuesses[row];
 				const results = board.guessResults[row];
 				if (!guess) continue;
 				for (let i = 0; i < 5; i++) {
@@ -61,15 +65,34 @@ export function createGame(mode: GameMode) {
 			}
 		}
 		return states;
-	});
+	}
+
+	function applyKeyboardUpdate(guess: string, results: GuessResult[]) {
+		const next = new Map(keyboardState);
+		for (const result of results) {
+			for (let i = 0; i < 5; i++) {
+				const letter = guess[i];
+				const nextState = result.states[i];
+				if (!letter || !nextState) continue;
+				const current = next.get(letter);
+				if (!current || statePriority[nextState] > statePriority[current]) {
+					next.set(letter, nextState);
+				}
+			}
+		}
+		keyboardState = next;
+	}
 
 	function applyState(state: Awaited<ReturnType<typeof fetchState>>) {
-		boards = state.boards.map((board) => ({
+		const nextBoards = state.boards.map((board) => ({
 			boardIndex: board.boardIndex,
 			guessResults: board.guessResults,
 			solved: board.solved,
+			frozenGuesses: board.solved ? state.guesses.slice(0, board.guessResults.length) : undefined,
 		}));
+		boards = nextBoards;
 		guesses = state.guesses;
+		keyboardState = buildKeyboardState(nextBoards, state.guesses);
 		boardCount = state.boardCount;
 		maxGuesses = state.maxGuesses;
 		solvedCount = state.solvedCount;
@@ -78,11 +101,14 @@ export function createGame(mode: GameMode) {
 	}
 
 	function ensureBoards(count: number) {
-		boards = Array.from({ length: count }, (_, index) => ({
+		const nextBoards = Array.from({ length: count }, (_, index) => ({
 			boardIndex: index,
 			guessResults: [],
 			solved: false,
+			frozenGuesses: undefined,
 		}));
+		boards = nextBoards;
+		keyboardState = buildKeyboardState(nextBoards, guesses);
 	}
 
 	async function initialize() {
@@ -155,20 +181,26 @@ export function createGame(mode: GameMode) {
 
 		try {
 			const response = await submitGuessRequest(token, normalized);
-			guesses = [...guesses, normalized];
+			const nextGuesses = [...guesses, normalized];
+			guesses = nextGuesses;
 			solvedCount = response.solvedCount;
 			totalGuesses = response.totalGuesses;
 			gameOver = response.gameOver;
 			currentGuess = '';
+			applyKeyboardUpdate(normalized, response.results);
 
 			const resultsByBoard = new Map(response.results.map((result) => [result.boardIndex, result]));
 			boards = boards.map((board) => {
 				const result = resultsByBoard.get(board.boardIndex);
 				if (!result) return board;
+				const frozenGuesses = result.solved
+					? nextGuesses.slice(0, board.guessResults.length + 1)
+					: board.frozenGuesses;
 				return {
 					...board,
 					guessResults: [...board.guessResults, result.states],
 					solved: board.solved || result.solved,
+					frozenGuesses,
 				};
 			});
 
