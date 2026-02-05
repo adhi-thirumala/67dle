@@ -1,0 +1,75 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "67dle-workers",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-02-05",
+	"observability": {
+		"enabled": true
+	},
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"kv_namespaces": [
+		{
+			"binding": "SESSIONS",
+			"id": "REPLACE_WITH_KV_ID",
+			"preview_id": "REPLACE_WITH_KV_PREVIEW_ID"
+		}
+	],
+	"d1_databases": [
+		{
+			"binding": "WORDS_DB",
+			"database_name": "67dle-words",
+			"database_id": "REPLACE_WITH_D1_ID"
+		}
+	],
+	"env": {
+		"preview": {
+			"kv_namespaces": [
+				{
+					"binding": "SESSIONS",
+					"id": "39c1fad20d784ccfb40a283f830e3d09"
+				}
+			],
+			"d1_databases": [
+				{
+					"binding": "WORDS_DB",
+					"database_name": "67dle-words-preview",
+					"database_id": "1a5cecf3-76b6-414e-93ca-b8c702831bd4"
+				}
+			]
+		}
+	}
+	/**
+	 * Smart Placement
+	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
+	 */
+	// "placement": {  "mode": "smart" }
+	/**
+	 * Bindings
+	 * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
+	 * databases, object storage, AI inference, real-time communication and more.
+	 * https://developers.cloudflare.com/workers/runtime-apis/bindings/
+	 */
+	/**
+	 * Environment Variables
+	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
+	 * Note: Use secrets to store sensitive data.
+	 * https://developers.cloudflare.com/workers/configuration/secrets/
+	 */
+	// "vars": {  "MY_VARIABLE": "production_value" }
+	/**
+	 * Static Assets
+	 * https://developers.cloudflare.com/workers/static-assets/binding/
+	 */
+	// "assets": {  "directory": "./public/",  "binding": "ASSETS" }
+	/**
+	 * Service Bindings (communicate between multiple Workers)
+	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
+	 */
+	// "services": [  {   "binding": "MY_SERVICE",   "service": "my-service"  } ]
+}

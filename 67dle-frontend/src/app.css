@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+/* Custom colors for Wordle states */
+@theme {
+  --color-correct: #538d4e;
+  --color-present: #b59f3b;
+  --color-absent: #3a3a3c;
+  --color-border: #3a3a3c;
+  --color-border-filled: #565758;
+}
