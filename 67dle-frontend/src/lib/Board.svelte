@@ -1,6 +1,11 @@
 <script lang="ts">
     import type { BoardState, LetterState } from "./game.svelte.ts";
 
+    interface CellData {
+        letter: string;
+        state: LetterState;
+    }
+
     interface Props {
         board: BoardState;
         guesses: string[];
@@ -14,40 +19,50 @@
 
     let { board, guesses, currentGuess, shaking, maxRows = 6, revealRow = -1, selected = false, onselect }: Props = $props();
 
-    // Get cell state and letter for a position
-    function getCellData(
-        row: number,
-        col: number,
-    ): { letter: string; state: LetterState } {
-        // Completed guess row
-        if (row < board.guessResults.length) {
-            const guess = guesses[row] ?? "";
-            const evaluation = board.guessResults[row];
-            return {
-                letter: guess[col].toUpperCase(),
-                state: evaluation[col],
-            };
+    // --- Precomputed completed rows: only recomputes when guessResults/guesses change, NOT on typing ---
+    const completedRows = $derived.by(() => {
+        const rows: CellData[][] = [];
+        for (let r = 0; r < board.guessResults.length; r++) {
+            const guess = guesses[r] ?? "";
+            const evaluation = board.guessResults[r];
+            const row: CellData[] = [];
+            for (let c = 0; c < 5; c++) {
+                row.push({
+                    letter: guess[c]?.toUpperCase() ?? "",
+                    state: evaluation[c],
+                });
+            }
+            rows.push(row);
         }
+        return rows;
+    });
 
-        // Current input row (only for unsolved boards)
-        if (!board.solved && row === board.guessResults.length) {
-            const letter = currentGuess[col] || "";
-            return {
-                letter: letter.toUpperCase(),
-                state: letter ? "tbd" : "empty",
-            };
+    // --- Current input row: only recomputes when currentGuess changes (typing) ---
+    // For solved boards, this is never read in the template.
+    const currentRow = $derived.by(() => {
+        if (board.solved) return null;
+        const row: CellData[] = [];
+        for (let c = 0; c < 5; c++) {
+            const letter = currentGuess[c] ?? "";
+            row.push({
+                letter: letter ? letter.toUpperCase() : "",
+                state: letter ? "tbd" as LetterState : "empty" as LetterState,
+            });
         }
+        return row;
+    });
 
-        // Empty future row
-        return { letter: "", state: "empty" };
-    }
-
-    // Calculate visible rows
+    // --- Number of visible rows ---
     const visibleRows = $derived(
         Math.min(maxRows, Math.max(board.guessResults.length + (board.solved ? 0 : 1), 6)),
     );
 
-    // State classes
+    // --- Number of empty rows at the bottom ---
+    const emptyRowCount = $derived(
+        visibleRows - board.guessResults.length - (board.solved ? 0 : 1)
+    );
+
+    // State classes - constant lookup
     const stateClasses: Record<LetterState, string> = {
         empty: "border-border bg-transparent",
         tbd: "border-border-filled bg-transparent",
@@ -55,6 +70,9 @@
         present: "border-present bg-present text-white",
         absent: "border-absent bg-absent text-white",
     };
+
+    // Shared empty cell constant
+    const EMPTY_CELL: CellData = { letter: "", state: "empty" };
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -68,20 +86,38 @@
     style="contain-intrinsic-size: 120px;"
     onclick={onselect}
 >
-    {#each { length: visibleRows } as _, row}
-        {#each { length: 5 } as _, col}
-            {@const { letter, state } = getCellData(row, col)}
-            {@const isRevealing = revealRow >= 0 && row === revealRow && state !== 'empty' && state !== 'tbd'}
+    <!-- Completed rows: only rerender when guessResults change (on submit), NOT on typing -->
+    {#each completedRows as row, rowIdx}
+        {#each row as cell, col}
+            {@const isRevealing = revealRow >= 0 && rowIdx === revealRow && cell.state !== 'empty' && cell.state !== 'tbd'}
             <div
-                class="aspect-square flex items-center justify-center text-[10px] font-bold border {stateClasses[
-                    state
-                ]}"
+                class="aspect-square flex items-center justify-center text-[10px] font-bold border {stateClasses[cell.state]}"
                 class:cell-reveal={isRevealing}
                 style={isRevealing ? `animation-delay: ${col * 60}ms` : ''}
             >
-                {letter}
+                {cell.letter}
             </div>
         {/each}
+    {/each}
+
+    <!-- Current input row: only rerenders on typing. Skipped entirely for solved boards. -->
+    {#if currentRow}
+        {#each currentRow as cell}
+            <div
+                class="aspect-square flex items-center justify-center text-[10px] font-bold border {stateClasses[cell.state]}"
+            >
+                {cell.letter}
+            </div>
+        {/each}
+    {/if}
+
+    <!-- Empty rows: completely static, no reactive dependencies -->
+    {#each { length: Math.max(0, emptyRowCount) } as _}
+        <div class="aspect-square flex items-center justify-center text-[10px] font-bold border border-border bg-transparent"></div>
+        <div class="aspect-square flex items-center justify-center text-[10px] font-bold border border-border bg-transparent"></div>
+        <div class="aspect-square flex items-center justify-center text-[10px] font-bold border border-border bg-transparent"></div>
+        <div class="aspect-square flex items-center justify-center text-[10px] font-bold border border-border bg-transparent"></div>
+        <div class="aspect-square flex items-center justify-center text-[10px] font-bold border border-border bg-transparent"></div>
     {/each}
 </div>
 

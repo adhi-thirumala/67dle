@@ -110,17 +110,30 @@
     <div class="grid gap-2 max-w-7xl mx-auto boards-grid"
          class:boards-checking={game.checking}
          style="grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));">
-      {#each visibleBoards as board, i (i)}
-        <Board 
-          {board} 
-          guesses={(board as { frozenGuesses?: string[] }).frozenGuesses ?? game.guesses}
-          currentGuess={board.solved ? '' : game.currentGuess}
-          shaking={game.shaking}
-          maxRows={game.maxGuesses}
-          revealRow={game.revealRow}
-          selected={game.selectedBoardIndex === board.boardIndex}
-          onselect={() => game.selectBoard(board.boardIndex)}
-        />
+      {#each visibleBoards as board (board.boardIndex)}
+        {#if board.solved}
+          <Board 
+            {board} 
+            guesses={board.frozenGuesses ?? game.guesses}
+            currentGuess=""
+            shaking={false}
+            maxRows={game.maxGuesses}
+            revealRow={-1}
+            selected={game.selectedBoardIndex === board.boardIndex}
+            onselect={() => game.selectBoard(board.boardIndex)}
+          />
+        {:else}
+          <Board 
+            {board} 
+            guesses={game.guesses}
+            currentGuess={game.currentGuess}
+            shaking={game.shaking}
+            maxRows={game.maxGuesses}
+            revealRow={game.revealRow}
+            selected={game.selectedBoardIndex === board.boardIndex}
+            onselect={() => game.selectBoard(board.boardIndex)}
+          />
+        {/if}
       {/each}
     </div>
   </div>
