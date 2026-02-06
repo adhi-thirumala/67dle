@@ -7,9 +7,12 @@
         currentGuess: string;
         shaking: boolean;
         maxRows?: number;
+        revealRow?: number;
+        selected?: boolean;
+        onselect?: () => void;
     }
 
-    let { board, guesses, currentGuess, shaking, maxRows = 6 }: Props = $props();
+    let { board, guesses, currentGuess, shaking, maxRows = 6, revealRow = -1, selected = false, onselect }: Props = $props();
 
     // Get cell state and letter for a position
     function getCellData(
@@ -54,20 +57,27 @@
     };
 </script>
 
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-    class="grid grid-cols-5 gap-0.5 p-1 bg-neutral-800 rounded border border-neutral-700 contain-strict"
-    class:opacity-60={board.solved}
-    class:border-correct={board.solved}
+    class="grid grid-cols-5 gap-0.5 p-1 bg-neutral-800 rounded border-2 contain-strict cursor-pointer transition-colors
+           {selected ? 'border-white ring-1 ring-white/40' : 'border-neutral-700'}"
+    class:opacity-60={board.solved && !selected}
+    class:border-correct={board.solved && !selected}
     class:animate-shake={shaking && !board.solved}
     style="contain-intrinsic-size: 120px;"
+    onclick={onselect}
 >
     {#each { length: visibleRows } as _, row}
         {#each { length: 5 } as _, col}
             {@const { letter, state } = getCellData(row, col)}
+            {@const isRevealing = revealRow >= 0 && row === revealRow && state !== 'empty' && state !== 'tbd'}
             <div
                 class="aspect-square flex items-center justify-center text-[10px] font-bold border {stateClasses[
                     state
                 ]}"
+                class:cell-reveal={isRevealing}
+                style={isRevealing ? `animation-delay: ${col * 60}ms` : ''}
             >
                 {letter}
             </div>
@@ -99,8 +109,30 @@
         animation: shake 0.5s ease-in-out;
     }
 
+    @keyframes cell-reveal {
+        0% {
+            transform: scaleY(1);
+            opacity: 0.4;
+        }
+        50% {
+            transform: scaleY(0);
+            opacity: 0.4;
+        }
+        51% {
+            transform: scaleY(0);
+            opacity: 1;
+        }
+        100% {
+            transform: scaleY(1);
+            opacity: 1;
+        }
+    }
+
+    .cell-reveal {
+        animation: cell-reveal 300ms ease forwards;
+    }
+
     .contain-strict {
         contain: layout style paint;
-        content-visibility: auto;
     }
 </style>

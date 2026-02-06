@@ -40,11 +40,47 @@ export function createGame(mode: GameMode) {
 	let boardCount = $state(DEFAULT_BOARD_COUNT);
 	let gameOver = $state(false);
 	let shaking = $state(false);
+	let checking = $state(false);
+	let revealRow = $state(-1);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let token = $state<string | null>(null);
 
 	let keyboardState = $state(new Map<string, LetterState>());
+	let selectedBoardIndex = $state<number | null>(null);
+
+	function buildKeyboardStateForBoard(board: BoardState, boardGuesses: string[]): Map<string, LetterState> {
+		const states = new Map<string, LetterState>();
+		for (let row = 0; row < board.guessResults.length; row++) {
+			const guess = boardGuesses[row];
+			const results = board.guessResults[row];
+			if (!guess) continue;
+			for (let i = 0; i < 5; i++) {
+				const letter = guess[i];
+				const nextState = results[i];
+				if (!letter || !nextState) continue;
+				const current = states.get(letter);
+				if (!current || statePriority[nextState] > statePriority[current]) {
+					states.set(letter, nextState);
+				}
+			}
+		}
+		return states;
+	}
+
+	let activeKeyboardState = $derived.by(() => {
+		if (selectedBoardIndex !== null) {
+			const board = boards.find(b => b.boardIndex === selectedBoardIndex);
+			if (board) {
+				return buildKeyboardStateForBoard(board, board.frozenGuesses ?? guesses);
+			}
+		}
+		return keyboardState;
+	});
+
+	function selectBoard(index: number | null) {
+		selectedBoardIndex = selectedBoardIndex === index ? null : index;
+	}
 
 	function buildKeyboardState(nextBoards: BoardState[], nextGuesses: string[]): Map<string, LetterState> {
 		const states = new Map<string, LetterState>();
@@ -179,9 +215,11 @@ export function createGame(mode: GameMode) {
 			return false;
 		}
 
+		checking = true;
 		try {
 			const response = await submitGuessRequest(token, normalized);
 			const nextGuesses = [...guesses, normalized];
+			const newRowIndex = guesses.length;
 			guesses = nextGuesses;
 			solvedCount = response.solvedCount;
 			totalGuesses = response.totalGuesses;
@@ -204,8 +242,17 @@ export function createGame(mode: GameMode) {
 				};
 			});
 
+			// Trigger reveal animation on the newly added row
+			revealRow = newRowIndex;
+			checking = false;
+			// Clear revealRow after animation completes
+			setTimeout(() => {
+				revealRow = -1;
+			}, 600);
+
 			return response.valid;
 		} catch (err) {
+			checking = false;
 			triggerShake();
 			const status = err instanceof Error ? (err as Error & { status?: number }).status : undefined;
 			if (status === 401 || status === 404) {
@@ -240,7 +287,10 @@ export function createGame(mode: GameMode) {
 		get totalGuesses() { return totalGuesses; },
 		get gameOver() { return gameOver; },
 		get shaking() { return shaking; },
-		get keyboardState() { return keyboardState; },
+		get checking() { return checking; },
+		get revealRow() { return revealRow; },
+		get keyboardState() { return activeKeyboardState; },
+		get selectedBoardIndex() { return selectedBoardIndex; },
 		get maxGuesses() { return maxGuesses; },
 		get boardCount() { return boardCount; },
 		get mode() { return mode; },
@@ -250,6 +300,7 @@ export function createGame(mode: GameMode) {
 		addLetter,
 		removeLetter,
 		submitGuess,
+		selectBoard,
 	};
 }
 

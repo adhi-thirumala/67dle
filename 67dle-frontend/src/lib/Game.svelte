@@ -107,7 +107,8 @@
   
   <!-- Boards Grid -->
   <div class="flex-1 overflow-auto p-3">
-    <div class="grid gap-2 max-w-7xl mx-auto"
+    <div class="grid gap-2 max-w-7xl mx-auto boards-grid"
+         class:boards-checking={game.checking}
          style="grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));">
       {#each visibleBoards as board, i (i)}
         <Board 
@@ -116,6 +117,9 @@
           currentGuess={board.solved ? '' : game.currentGuess}
           shaking={game.shaking}
           maxRows={game.maxGuesses}
+          revealRow={game.revealRow}
+          selected={game.selectedBoardIndex === board.boardIndex}
+          onselect={() => game.selectBoard(board.boardIndex)}
         />
       {/each}
     </div>
@@ -180,5 +184,13 @@
 
   .animate-pop {
     animation: pop-in 160ms ease-out;
+  }
+
+  .boards-grid {
+    transition: opacity 150ms ease;
+  }
+
+  .boards-checking {
+    opacity: 0.5;
   }
 </style>
