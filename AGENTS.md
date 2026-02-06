@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-67dle is a Wordle variant where players solve 67 simultaneous word puzzles. The project is a **monorepo** with two packages: a Svelte 5 frontend and a Cloudflare Workers backend.
+67dle is a Wordle variant where players solve 67 simultaneous word puzzles. The project is a **monorepo** with two packages: a Svelte 5 frontend and a Cloudflare Workers backend. Both are deployed as a **single Cloudflare Worker** using Workers Static Assets for the SPA and Hono for the API.
 
 ## Tech Stack
 
@@ -10,8 +10,22 @@
 - **Styling:** Tailwind CSS v4 (CSS-first config)
 - **Frontend Build:** Vite + Bun
 - **Backend:** Cloudflare Workers with Hono
+- **Deployment:** Single Worker with Static Assets (`wrangler deploy` from `67dle-workers/`)
 - **Backend Tooling:** Wrangler, Vitest with `@cloudflare/vitest-pool-workers`
 - **Language:** TypeScript (both packages)
+
+## Deployment Architecture
+
+The entire app is deployed as **one Cloudflare Worker**:
+
+- **Static assets** (the Vite-built SPA in `67dle-frontend/dist/`) are served by Workers Static Assets
+- **API routes** (`/api/*`) are handled by the Hono Worker via `run_worker_first`
+- **SPA fallback** (`not_found_handling: "single-page-application"`) returns `index.html` for non-matching routes
+
+Routing flow:
+1. Request to `/api/*` -> Worker code (Hono) handles it
+2. Request matches a static file (JS, CSS, images) -> served directly from assets (no Worker invocation)
+3. Request doesn't match any file -> `index.html` served (SPA client-side routing)
 
 ## Project Structure
 
@@ -20,15 +34,15 @@
 ├── AGENTS.md                  # This file
 ├── .gitignore
 │
-├── 67dle-frontend/            # Svelte 5 SPA
+├── 67dle-frontend/            # Svelte 5 SPA (build-only, no standalone deploy)
 │   ├── index.html             # Entry HTML
 │   ├── package.json           # Frontend dependencies (no runtime deps)
-│   ├── vite.config.ts         # Vite + Svelte + Tailwind plugins
+│   ├── vite.config.ts         # Vite + Svelte + Tailwind plugins + dev proxy
 │   ├── svelte.config.js       # Svelte preprocessor config
 │   ├── tsconfig.json          # TypeScript config
 │   ├── public/
 │   │   └── favicon.svg        # App icon
-│   ├── dist/                  # Production build output (gitignored)
+│   ├── dist/                  # Production build output (consumed by Workers assets)
 │   └── src/
 │       ├── main.ts            # Mounts Svelte app to DOM
 │       ├── app.css            # Tailwind import + custom theme colors
@@ -43,9 +57,9 @@
 │           ├── Keyboard.svelte    # Virtual keyboard component
 │           └── GameOver.svelte    # End game modal with share
 │
-└── 67dle-workers/             # Cloudflare Workers API
-    ├── package.json           # Worker dependencies (wrangler, vitest, hono)
-    ├── wrangler.jsonc         # Wrangler config (bindings, compatibility, etc.)
+└── 67dle-workers/             # Cloudflare Workers API + Static Assets host
+    ├── package.json           # Worker dependencies + combined deploy scripts
+    ├── wrangler.jsonc         # Wrangler config (assets, bindings, compatibility)
     ├── vitest.config.mts      # Vitest config using CF Workers pool
     ├── tsconfig.json          # TypeScript config (es2024 target)
     ├── worker-configuration.d.ts  # Auto-generated Wrangler types (run `bun cf-typegen`)
@@ -123,6 +137,8 @@ Game state is created via the `createGame(mode)` factory in `game.svelte.ts`. It
 - Cache API stores daily targets (keyed by date) until midnight UTC
 - `nodejs_compat` compatibility flag enabled
 - Auto-generate types after adding bindings: `bun run cf-typegen`
+- **Static Assets:** `wrangler.jsonc` has an `assets` block pointing to `../67dle-frontend/dist`
+- **Routing:** `run_worker_first: ["/api/*"]` ensures only API requests invoke the Worker; all other requests are served from static assets or fall back to `index.html` (SPA mode)
 
 #### API Endpoints
 
@@ -172,7 +188,7 @@ Use as Tailwind classes: `bg-correct`, `text-present`, `border-absent`
 
 ```bash
 bun install    # Install dependencies
-bun dev        # Dev server at localhost:5173
+bun dev        # Dev server at localhost:5173 (proxies /api to :8787)
 bun build      # Production build to dist/
 bun preview    # Preview production build
 ```
@@ -180,12 +196,29 @@ bun preview    # Preview production build
 ### Workers (`67dle-workers/`)
 
 ```bash
-bun install        # Install dependencies
-bun dev            # Local dev server at localhost:8787
-bun run deploy     # Deploy worker to Cloudflare
-bun test           # Run tests in Workers runtime
-bun run cf-typegen # Regenerate Env types from wrangler.jsonc
+bun install            # Install dependencies
+bun dev                # Local dev server at localhost:8787 (serves API + static assets)
+bun run deploy         # Build frontend + deploy everything to Cloudflare
+bun run build:frontend # Build frontend only (called automatically by deploy)
+bun test               # Run tests in Workers runtime
+bun run cf-typegen     # Regenerate Env types from wrangler.jsonc
 ```
+
+### Local Development
+
+For local dev, run both servers:
+1. `cd 67dle-workers && bun dev` — Wrangler dev server at `:8787` (API + serves built assets)
+2. `cd 67dle-frontend && bun dev` — Vite dev server at `:5173` (HMR + proxies `/api` to `:8787`)
+
+Use `:5173` in the browser for hot-reload during frontend development. Use `:8787` to test the full production-like setup (requires `bun run build` in `67dle-frontend/` first).
+
+### Deploying
+
+From `67dle-workers/`:
+```bash
+bun run deploy
+```
+This builds the frontend, then deploys the Worker + static assets in one shot.
 
 ## Future Considerations
 
@@ -195,7 +228,6 @@ bun run cf-typegen # Regenerate Env types from wrangler.jsonc
 - **Statistics:** Track solve distribution, streaks
 - **Themes:** Light mode, color blind mode
 - **PWA:** Add service worker for offline play
-- **Static Assets:** Serve frontend build from Workers using Cloudflare Pages or Workers Sites
 
 ## Gotchas
 
@@ -207,3 +239,5 @@ bun run cf-typegen # Regenerate Env types from wrangler.jsonc
 6. **Monorepo:** No root `package.json` - run install/dev/build commands inside each package directory
 7. **Wrangler config:** Uses `.jsonc` (JSON with comments), not `.toml`
 8. **Worker types:** After changing `wrangler.jsonc` bindings, always run `bun run cf-typegen` to keep types in sync
+9. **Single deploy:** Both frontend and backend deploy from `67dle-workers/` — the `assets.directory` in `wrangler.jsonc` points to `../67dle-frontend/dist`, so the frontend must be built first (the `deploy` script handles this automatically)
+10. **Static assets routing:** `run_worker_first: ["/api/*"]` in `wrangler.jsonc` controls which requests hit Worker code vs static assets — only add paths here if they need server-side logic

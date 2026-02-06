@@ -54,15 +54,8 @@ export function clearToken(mode: GameMode): void {
 	localStorage.removeItem(key);
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? '';
-
-function buildApiUrl(path: string): string {
-	if (!API_BASE) return path;
-	return `${API_BASE.replace(/\/$/, '')}${path}`;
-}
-
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-	const response = await fetch(buildApiUrl(path), init);
+	const response = await fetch(path, init);
 	const data = await response.json();
 	if (!response.ok) {
 		const error = new Error(data?.error ?? 'Request failed');
